@@ -77,7 +77,8 @@ def clear_properties():
 
 # FEATURE: Estimate Time to Render an Animation
 def hours_float_to_str(rendertime): 
-    hours_int = int(rendertime)
+    hours_int = int(rendertime)    
+        
     left_mins = (rendertime - hours_int)*60
     if left_mins > 0:
         return "%d:%02d" % (hours_int,left_mins)
@@ -113,6 +114,46 @@ def estimate_render_animation_time(self, context):
         row = row.label("%s hours (ETA %s)"  % (rendertime_in_hours,formatted_finish_time))
 # // FEATURE: Estimate Time to Render an Animation
 
+# FEATURE: Select camera target (TrackTo like constraints)
+class SelectCameraTarget(bpy.types.Operator):
+    bl_idname = "view3d.select_camera_target"
+    bl_label = "Select Camera Target"
+
+    @classmethod
+    def poll(cls, context):
+        return context.active_object.type == 'CAMERA'
+
+    def execute(self, context):
+        if context.active_object.constraints:
+            for const in context.active_object.constraints:
+                print(const.type)
+                if const.type in ('DAMPED_TRACK','LOCKED_TRACK','TRACK_TO'):
+                    if const.target:
+                        bpy.ops.object.select_all()
+                        const.target.select = True
+                        bpy.context.scene.objects.active = const.target
+                    else:
+                        self.report({'WARNING'},"No target for constraint found")
+        else:
+            self.report({'WARNING'},"No constraints found")
+
+        return {'FINISHED'}
+
+
+# FEATURE: Additional options in W special key
+def special_key_options(self, context):
+
+    obj = context.active_object
+    scene = context.scene
+    layout = self.layout
+    
+    if obj.type =='CAMERA':
+        layout.separator()
+        layout.operator("view3d.select_camera_target", icon="CONSTRAINT")   
+
+# // FEATURE: Additional options in W
+
+
 # FEATURE: Motion paths buttons in W special key
 def motion_path_buttons(self, context):
 
@@ -125,26 +166,32 @@ def motion_path_buttons(self, context):
         self.layout.operator("object.paths_clear", text="Clear Object Paths")
     else:
         self.layout.operator("object.paths_calculate", text="Calculate Object Paths")
-    
 # // FEATURE: Motion paths buttons in W
 
 addon_keymaps = []
 
 def register():
 
+    init_properties()
+
     bpy.utils.register_class(OenvoyageToolsetPreferences)
 
-    init_properties()
-    # UI: Register the panel
+    bpy.utils.register_class(SelectCameraTarget)
 
+    # UI: Register the panels
     bpy.types.RENDER_PT_render.append(estimate_render_animation_time)
+    bpy.types.VIEW3D_MT_object_specials.append(special_key_options)
     bpy.types.VIEW3D_MT_object_specials.append(motion_path_buttons)
 
 def unregister():
 
     bpy.utils.unregister_class(OenvoyageToolsetPreferences)
 
+    bpy.utils.unregister_class(SelectCameraTarget)
+
+    # UI: Unregister the panels
     bpy.types.RENDER_PT_render.remove(estimate_render_animation_time)
+    bpy.types.VIEW3D_MT_object_specials.remove(special_key_options)
     bpy.types.VIEW3D_MT_object_specials.remove(motion_path_buttons)
     
     clear_properties()
