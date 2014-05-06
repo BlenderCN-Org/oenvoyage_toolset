@@ -114,6 +114,32 @@ def estimate_render_animation_time(self, context):
         row = row.label("%s hours (ETA %s)"  % (rendertime_in_hours,formatted_finish_time))
 # // FEATURE: Estimate Time to Render an Animation
 
+# make a quick OpenGL render
+
+
+class render_Quick_OpenGL(bpy.types.Operator):
+    """Tooltip"""
+    bl_idname = "view3d.render_quickopengl"
+    bl_label = "OpenGL Quick render"
+
+    @classmethod
+    def poll(cls, context):
+        return 1
+
+    def execute(self, context):
+        render = context.scene.render
+        space = bpy.context.space_data
+        
+        # pre preview
+        space.show_only_render = True
+        bpy.ops.render.opengl(animation = True)
+
+        # post preview 
+        space.show_only_render = False
+
+        return {'FINISHED'}
+    
+
 # FEATURE: Select camera target (TrackTo like constraints)
 class SelectCameraTarget(bpy.types.Operator):
     bl_idname = "view3d.select_camera_target"
@@ -151,6 +177,9 @@ def special_key_options(self, context):
         layout.separator()
         layout.operator("view3d.select_camera_target", icon="CONSTRAINT")   
 
+    layout.operator("view3d.render_quickopengl",icon='RENDER_ANIMATION')   
+
+
 # // FEATURE: Additional options in W
 
 
@@ -176,8 +205,10 @@ def register():
 
     bpy.utils.register_class(OenvoyageToolsetPreferences)
 
+    # register Operators
     bpy.utils.register_class(SelectCameraTarget)
-
+    bpy.utils.register_class(render_Quick_OpenGL)
+    
     # UI: Register the panels
     bpy.types.RENDER_PT_render.append(estimate_render_animation_time)
     bpy.types.VIEW3D_MT_object_specials.append(special_key_options)
@@ -187,7 +218,9 @@ def unregister():
 
     bpy.utils.unregister_class(OenvoyageToolsetPreferences)
 
+    # unregister Operators
     bpy.utils.unregister_class(SelectCameraTarget)
+    bpy.utils.unregister_class(render_Quick_OpenGL)
 
     # UI: Unregister the panels
     bpy.types.RENDER_PT_render.remove(estimate_render_animation_time)
