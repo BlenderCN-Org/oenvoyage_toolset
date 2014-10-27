@@ -19,7 +19,7 @@
 bl_info = {
     "name": "oenvoyage Toolset",
     "author": "Olivier Amrein",
-    "version": (0, 1, 0),
+    "version": (0, 2, 0),
     "blender": (2, 70),
     "location": "Everywhere!",
     "description": "A collection of tools and settings to improve productivity (based on Amaranth)",
@@ -39,7 +39,7 @@ class OenvoyageToolsetPreferences(AddonPreferences):
     bl_idname = __name__
     use_render_estimate = BoolProperty(
             name="Estimate Render time",
-            description="blalblalabl 3D View",
+            description="show the panel with render estimation",
             default=True,
             )
 
@@ -115,6 +115,22 @@ def estimate_render_animation_time(self, context):
 # // FEATURE: Estimate Time to Render an Animation
 
 # make a quick OpenGL render
+
+# PIE menu
+
+class VIEW3D_PIE_oenvoyage(Menu):
+    bl_label = "Oenvoyage PIE"
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+        pie.operator("view3d.manipulator_set", icon='MAN_TRANS', text="Translate").type = 'TRANSLATE'
+        aa = 10
+        if aa == 12:
+            pie.operator("view3d.view_selected")
+        pie.prop(context.space_data, "show_manipulator")
+
 
 
 class render_Quick_OpenGL(bpy.types.Operator):
@@ -208,11 +224,25 @@ def register():
     # register Operators
     bpy.utils.register_class(SelectCameraTarget)
     bpy.utils.register_class(render_Quick_OpenGL)
+
+    # register menus
+    bpy.utils.register_class(VIEW3D_PIE_oenvoyage)
+
     
     # UI: Register the panels
     bpy.types.RENDER_PT_render.append(estimate_render_animation_time)
     bpy.types.VIEW3D_MT_object_specials.append(special_key_options)
     bpy.types.VIEW3D_MT_object_specials.append(motion_path_buttons)
+    
+    wm = bpy.context.window_manager
+
+    if wm.keyconfigs.addon:
+        km = wm.keyconfigs.addon.keymaps.new(name='Object Non-modal')
+        kmi = km.keymap_items.new('wm.call_menu_pie', 'Q', 'PRESS', shift=True)
+        kmi.properties.name = 'VIEW3D_PIE_oenvoyage'
+
+        
+        addon_keymaps.append(km)
 
 def unregister():
 
@@ -221,6 +251,9 @@ def unregister():
     # unregister Operators
     bpy.utils.unregister_class(SelectCameraTarget)
     bpy.utils.unregister_class(render_Quick_OpenGL)
+
+    # runegister menus
+    bpy.utils.unregister_class(VIEW3D_PIE_oenvoyage)
 
     # UI: Unregister the panels
     bpy.types.RENDER_PT_render.remove(estimate_render_animation_time)
