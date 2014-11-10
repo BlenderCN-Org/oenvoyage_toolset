@@ -1,7 +1,7 @@
 oenvoyage_toolset
 ===============
 
-Oenvoyage_toolset is a collection of tools for Blender developped at RGBprod studio. It is based on and inspired by Amaranth from Pablo Vazquez ([Amaranth's website](http://pablovazquez.org/amaranth))
+Oenvoyage_toolset is a collection of tools for Blender developed at RGBprod studio. It is based on and inspired by Amaranth from Pablo Vazquez ([Amaranth's website](http://pablovazquez.org/amaranth))
 
 How to Install
 
