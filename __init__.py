@@ -19,9 +19,9 @@
 bl_info = {
     "name": "oenvoyage Toolset",
     "author": "Olivier Amrein",
-    "version": (0, 2, 0),
-    "blender": (2, 70),
-    "location": "Everywhere!",
+    "version": (0, 3, 0),
+    "blender": (2, 79),
+    "location": "Everywhere !!!",
     "description": "A collection of tools and settings to improve productivity (based on Amaranth)",
     "warning": "",
     "wiki_url": "",
@@ -29,10 +29,11 @@ bl_info = {
     "category": "Scene"}
 
 
-import bpy
+import sys, os, bpy
+sys.path.append(os.path.dirname(__file__)) 
 from bpy.types import Operator, AddonPreferences, Panel, Menu
 from bpy.props import BoolProperty
-from datetime import datetime, timedelta
+from oenvoyage_utils import *
 
 # Preferences
 class OenvoyageToolsetPreferences(AddonPreferences):
@@ -74,47 +75,15 @@ def clear_properties():
         if p in wm:
             del wm[p]
 
+class OBJECT_MT_multioptions_menu(bpy.types.Menu):
+    bl_label = "MultiOptions Menu"
+    bl_idname = "OBJECT_MT_multioptions_menu"
 
-# FEATURE: Estimate Time to Render an Animation
-def hours_float_to_str(rendertime): 
-    hours_int = int(rendertime)    
-        
-    left_mins = (rendertime - hours_int)*60
-    if left_mins > 0:
-        return "%d:%02d" % (hours_int,left_mins)
-    else:
-        return hours_int
- 
-def estimate_render_animation_time(self, context):
-    preferences = context.user_preferences.addons[__name__].preferences
-    
-    if preferences.use_render_estimate:
+    def draw(self, context):
         layout = self.layout
-        scene = context.scene
-            
-        total_frames = scene.frame_end - scene.frame_start
-        
-        avg = scene.average_rendertime 
-        estimated_rendertime = total_frames * avg/60
 
-        rendertime_in_hours = hours_float_to_str(estimated_rendertime)
-        
-        estimated_finish_time = datetime.now() + timedelta(hours=estimated_rendertime)
-        formatted_finish_time = '{:%a, %d %b @ %H:%M}'.format(estimated_finish_time)
-
-        row = layout.row()
-        split =layout.split()
-        split.label("Average rendertime: ")
-        
-        split.prop(scene,"average_rendertime", text="mins")
-
-        row = layout.row()
-        row = row.label("Expected rendertime for %s frames is:"  % total_frames)
-        row = layout.row()
-        row = row.label("%s hours (ETA %s)"  % (rendertime_in_hours,formatted_finish_time))
-# // FEATURE: Estimate Time to Render an Animation
-
-# make a quick OpenGL render
+        layout.operator("wm.open_mainfile")
+        layout.operator("wm.save_as_mainfile")
 
 # PIE menu
 
@@ -123,35 +92,51 @@ class VIEW3D_PIE_oenvoyage(Menu):
 
     def draw(self, context):
         layout = self.layout
-
+        #mode = context.object.mode
         pie = layout.menu_pie()
         pie.operator("view3d.manipulator_set", icon='MAN_TRANS', text="Translate").type = 'TRANSLATE'
-        aa = 10
-        if aa == 12:
-            pie.operator("view3d.view_selected")
+        pie.operator("view3d.view_selected")
+        pie.operator("view3d.wm.call_menu")
+        pie.operator("view3d.render_playblast", icon='RENDER_ANIMATION')
         pie.prop(context.space_data, "show_manipulator")
 
+# make a quick opengl rendering by enabling Show Only Render is display + making ogl render
 
-
-class render_Quick_OpenGL(bpy.types.Operator):
+class render_PlayBlast(bpy.types.Operator):
     """Tooltip"""
-    bl_idname = "view3d.render_quickopengl"
-    bl_label = "OpenGL Quick render"
+    bl_idname = "view3d.render_playblast"
+    bl_label = "OpenGL playblast"
 
     @classmethod
     def poll(cls, context):
         return 1
 
     def execute(self, context):
+        mainfile = bpy.data.filepath
+        filename = os.path.splitext(os.path.basename(mainfile))[0]
+        bpy.ops.wm.save_mainfile()        
+
         render = context.scene.render
         space = bpy.context.space_data
-        
+        rsettings = render.image_settings
         # pre preview
+        #change settings and render OGL
+        render.use_stamp = True
         space.show_only_render = True
+        render.resolution_percentage = 50
+
+        render.filepath = "//playblasts/"+filename
+        render.image_settings.file_format = "H264" 
+        render.ffmpeg.format = 'MPEG4'
+        render.ffmpeg.codec = 'H264'
+        
         bpy.ops.render.opengl(animation = True)
 
-        # post preview 
-        space.show_only_render = False
+        # post preview and reset settings to original
+        bpy.ops.render.play_rendered_anim()
+        
+        bpy.ops.wm.open_mainfile(filepath=mainfile)
+        self.report({'INFO'},"OpenGL playblast preview finished")
 
         return {'FINISHED'}
     
@@ -193,7 +178,7 @@ def special_key_options(self, context):
         layout.separator()
         layout.operator("view3d.select_camera_target", icon="CONSTRAINT")   
 
-    layout.operator("view3d.render_quickopengl",icon='RENDER_ANIMATION')   
+    layout.operator("view3d.render_playblast",icon='RENDER_ANIMATION')   
 
 
 # // FEATURE: Additional options in W
@@ -219,14 +204,17 @@ def register():
 
     init_properties()
 
+    #bpy.utils.register_module(__name__)
+
     bpy.utils.register_class(OenvoyageToolsetPreferences)
 
     # register Operators
     bpy.utils.register_class(SelectCameraTarget)
-    bpy.utils.register_class(render_Quick_OpenGL)
+    bpy.utils.register_class(render_PlayBlast)
 
     # register menus
     bpy.utils.register_class(VIEW3D_PIE_oenvoyage)
+    bpy.utils.register_class(OBJECT_MT_multioptions_menu)
 
     
     # UI: Register the panels
@@ -246,14 +234,18 @@ def register():
 
 def unregister():
 
+    #bpy.utils.unregister_module(__name__)
+
     bpy.utils.unregister_class(OenvoyageToolsetPreferences)
 
     # unregister Operators
     bpy.utils.unregister_class(SelectCameraTarget)
-    bpy.utils.unregister_class(render_Quick_OpenGL)
+    bpy.utils.unregister_class(render_PlayBlast)
 
     # runegister menus
     bpy.utils.unregister_class(VIEW3D_PIE_oenvoyage)
+    bpy.utils.unregister_class(OBJECT_MT_multioptions_menu)
+
 
     # UI: Unregister the panels
     bpy.types.RENDER_PT_render.remove(estimate_render_animation_time)
@@ -263,4 +255,5 @@ def unregister():
     clear_properties()
 
 if __name__ == "__main__":
+    print("LOADING SPLIT ADDON")
     register()
